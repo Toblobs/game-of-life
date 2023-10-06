@@ -3,9 +3,71 @@
 
 import random
 from time import sleep
+import threading
 
-from __init__ import __version__, __snap__
-    
+from __init__ import __version__, __snap__, get_package
+
+# Import packages
+import tkinter as tk
+
+get_package('numpy')
+import numpy
+
+class TkinterGrid:
+
+    def __init__(self, row_len, col_len):
+
+        self.window = None
+        
+        self.row_len = row_len
+        self.col_len = col_len
+
+    def begin(self, a):
+
+        self.window = tk.Tk()
+        self.window.title(f'Game Of Life v{__version__} - {__snap__}')
+
+        for x in range(self.row_len):
+            
+            for y in range(self.col_len):
+                
+                frame = tk.Frame(
+                    master = self.window,
+                    relief = tk.RAISED,
+                    borderwidth = 1
+                )
+                
+                
+                frame.grid(row = x, column = y)
+                label = tk.Label(master = frame, text = '⬛')
+                label.pack()
+
+        self.window.mainloop()
+
+    def paint_cells(self, cells):
+
+        for x in range(self.row_len):
+
+            for y in range(self.col_len):
+
+                this_cell = cells[x][y]
+
+                if not (this_cell.state == this_cell.previous_state):
+
+                    frame = tk.Frame(
+                        master = self.window,
+                        relief = tk.RAISED,
+                        borderwidth = 1
+                    )
+
+                    frame.grid(row = x, column = y)
+                    label = tk.Label(master = frame, text = this_cell.state)
+                    label.pack()
+
+                else:
+
+                    pass 
+        
 class Cell:
 
     def __init__(self, state, row, column, out_of_bounds = False):
@@ -15,6 +77,14 @@ class Cell:
         self.column = column
 
         self.out_of_bounds = out_of_bounds
+
+        self.previous_state = None
+
+    def change_state(self, sta):
+
+        self.previous_state = self.state
+        self.state = sta
+
 
 class Board:
 
@@ -26,9 +96,9 @@ class Board:
 
         self.cell_list = [] # 2D List
 
-    def initialise_board(self):
+    def initialise_board(self, brd = None):
 
-        self.fill_board()
+        self.fill_board(brd)
 
     def clear_board(self):
 
@@ -36,38 +106,28 @@ class Board:
             
             self.cell_list.append([])
             for y in range(self.length):
-                self.cell_list[x].append(Cell(state = 'Dead', row = x, column = y))
+                self.cell_list[x].append(Cell(state = '⬛', row = x, column = y))
 
-    def fill_board(self):
-        
+    def fill_board(self, board = None):
+
         for x in range(self.width):
             
             self.cell_list.append([])
             for y in range(self.length):
 
-                if random.randint(0, 100) <= 20:
-                    self.cell_list[x].append(Cell(state = 'Alive', row = x, column = y))
+                if board == None:
+
+                    if random.randint(0, 100) <= 10:
+                        self.cell_list[x].append(Cell(state = '⬜', row = x, column = y))
+                    else:
+                        self.cell_list[x].append(Cell(state = '⬛', row = x, column = y))
+
                 else:
-                    self.cell_list[x].append(Cell(state = 'Dead', row = x, column = y))
+                    self.cell_list[x].append(Cell(state = board[x][y], row = x, column = y))
 
-    def __str__(self):
-        
-        for x in range(self.width):
-            for y in range(self.length):
-                if self.cell_list[x][y].state == 'Alive':
-                    print(f'|⬜', end = '')
-                else:
-                    print(f'|⬛', end = '')
-
-                    
-                #print(f'| {self.cell_list[x][y].state[0]} {x}/{y}', end = '')
-
-            print('|\n')
-            print('━' * 40)
-
-        print('\n'*10)
-
-        return ''
+    def print(self, tkgrid):
+                
+        tkgrid.paint_cells(self.cell_list)
 
     def get_cell(self, row, column):
 
@@ -77,7 +137,7 @@ class Board:
 
         except:
 
-            return Cell(state = 'Dead', row = row, column = column, out_of_bounds = True)
+            return Cell(state = '⬛', row = row, column = column, out_of_bounds = True)
         
     def tick(self):
 
@@ -102,23 +162,23 @@ class Board:
 
                 # Handling rules
                 state_neighbours = [n.state for n in neighbours]
-                alive_count = state_neighbours.count('Alive')
+                alive_count = state_neighbours.count('⬜')
 
                 # Handling alive cells
 
-                if this_cell.state == 'Alive' and this_cell.out_of_bounds == False:
+                if this_cell.state == '⬜' and this_cell.out_of_bounds == False:
 
                     if alive_count < 2:
-                        this_cell.state = 'Dead'
+                        this_cell.change_state('⬛')
 
                     if alive_count > 3:
-                        this_cell.state = 'Dead'
+                        this_cell.change_state('⬛')
 
                 # Handling dead cells
                 else:
 
                     if alive_count == 3:
-                        this_cell.state = 'Alive'
+                        this_cell.change_state('⬜')
                     
 
     
@@ -131,30 +191,46 @@ def conways_game_of_life():
 
     # Important settings
     
-    BOARD_LENGTH = 10
-    BOARD_WIDTH = 10
+    BOARD_LENGTH = 20
+    BOARD_WIDTH = 20
+
+    CELL_COORDS = [(6, 3), (6, 4), (6, 5)]
     
     TORODIAL = False # If the board wraps around itself
     SIMULATION_LENGTH = -1 # -1: infinite, else is amount of steps
     STEP = 0 # current time step
 
-    SLEEP_LENGTH = 5 # How long the program waits for / step
+    SLEEP_LENGTH = 1 # How long the program waits for / step
 
     # Board initialisation
     board = Board(BOARD_LENGTH, BOARD_WIDTH, TORODIAL)
+
+    #my_brd = []
+
+    #for x in range(BOARD_LENGTH):
+    #    my_brd.append([])
+        
+    #    for y in range(BOARD_WIDTH):
+    #        if (x, y) in CELL_COORDS:
+    #           my_brd[x].append('⬜')
+    #        else:
+    #            my_brd[x].append('⬛')
+            
     board.initialise_board()
 
     # Lambda function to return the column in any 2D list
     # return_col = lambda col, lst: [row[col] for row in lst]
 
-    print(f'Game Of Life v{__version__}')
-    print()
+    grd = TkinterGrid(BOARD_LENGTH, BOARD_WIDTH)
+    
+    t = threading.Thread(target = grd.begin, args = (1,))
+    t.start()
+
 
     while True:
 
         board.tick()
-        print(board)
-
+        
         # Game Tick
 
         if SIMULATION_LENGTH == -1: # Infinite
@@ -169,6 +245,8 @@ def conways_game_of_life():
         STEP = STEP + 1
     
         sleep(SLEEP_LENGTH)
+
+        board.print(grd)
         
 
 conways_game_of_life()
